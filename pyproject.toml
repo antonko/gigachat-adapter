@@ -1,0 +1,21 @@
+[project]
+name = "gigachat-adapter"
+version = "0.1.0"
+description = "GigaChat adapter for FastAPI"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.6",
+    "gigachat>=0.1.36",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "pydantic>=2.10.4",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.14.0",
+    "pytest>=8.3.4",
+    "pytest-httpx>=0.35.0",
+    "ruff>=0.8.4",
+]
