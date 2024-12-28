@@ -1,38 +1,57 @@
-import os
-
 from dotenv import load_dotenv
 from gigachat import GigaChat
+from pydantic_settings import BaseSettings
 
 from .models import ModelData, ModelsResponse
+
+
+class GigaChatSettings(BaseSettings):
+    base_url: str | None = None
+    auth_url: str | None = None
+    credentials: str | None = None
+    scope: str | None = None
+    access_token: str | None = None
+    model: str | None = None
+    profanity_check: bool | None = None
+    user: str | None = None
+    password: str | None = None
+    timeout: int | None = None
+    verify_ssl_certs: bool | None = None
+    verbose: bool | None = None
+    ca_bundle_file: str | None = None
+    cert_file: str | None = None
+    key_file: str | None = None
+    key_file_password: str | None = None
+
+    class Config:
+        env_file = ".env"
+        env_prefix = "GIGACHAT_"
+        extra = "allow"
 
 
 class GigaChatService:
     def __init__(self, **kwargs):
         load_dotenv()
-        config = self._get_config_from_env()
-        config.update(kwargs)
-        self._client = GigaChat(**config)
+        self._settings = GigaChatSettings(**kwargs)
+        self._client = GigaChat(
+            base_url=self._settings.base_url,
+            auth_url=self._settings.auth_url,
+            credentials=self._settings.credentials,
+            scope=self._settings.scope,
+            access_token=self._settings.access_token,
+            model=self._settings.model,
+            profanity_check=self._settings.profanity_check,
+            user=self._settings.user,
+            password=self._settings.password,
+            timeout=self._settings.timeout,
+            verify_ssl_certs=self._settings.verify_ssl_certs,
+            verbose=self._settings.verbose,
+            ca_bundle_file=self._settings.ca_bundle_file,
+            cert_file=self._settings.cert_file,
+            key_file=self._settings.key_file,
+            key_file_password=self._settings.key_file_password,
+        )
         self._client.get_token()
-
-    def _get_config_from_env(self):
-        return {
-            "base_url": os.getenv("GIGACHAT_BASE_URL"),
-            "auth_url": os.getenv("GIGACHAT_AUTH_URL"),
-            "credentials": os.getenv("GIGACHAT_CREDENTIALS"),
-            "scope": os.getenv("GIGACHAT_SCOPE"),
-            "access_token": os.getenv("GIGACHAT_ACCESS_TOKEN"),
-            "model": os.getenv("GIGACHAT_MODEL"),
-            "profanity_check": os.getenv("GIGACHAT_PROFANITY_CHECK"),
-            "user": os.getenv("GIGACHAT_USER"),
-            "password": os.getenv("GIGACHAT_PASSWORD"),
-            "timeout": os.getenv("GIGACHAT_TIMEOUT"),
-            "verify_ssl_certs": os.getenv("GIGACHAT_VERIFY_SSL_CERTS"),
-            "verbose": os.getenv("GIGACHAT_VERBOSE"),
-            "ca_bundle_file": os.getenv("GIGACHAT_CA_BUNDLE_FILE"),
-            "cert_file": os.getenv("GIGACHAT_CERT_FILE"),
-            "key_file": os.getenv("GIGACHAT_KEY_FILE"),
-            "key_file_password": os.getenv("GIGACHAT_KEY_FILE_PASSWORD"),
-        }
 
     def get_models(self) -> ModelsResponse:
         raw_models = self._client.get_models()

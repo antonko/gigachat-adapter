@@ -1,5 +1,7 @@
 from fastapi import status
 
+from .conftest import TEST_BEARER_TOKEN
+
 
 def test_get_models(client, httpx_mock):
     httpx_mock.add_response(
@@ -33,7 +35,8 @@ def test_get_models(client, httpx_mock):
             "object": "list",
         }
     )
-    response = client.get("/v1/models")
+    headers = {"Authorization": f"Bearer {TEST_BEARER_TOKEN}"}
+    response = client.get("/v1/models", headers=headers)
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["object"] == "list"
