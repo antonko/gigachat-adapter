@@ -20,3 +20,7 @@ dev = [
     "pytest-httpx>=0.35.0",
     "ruff>=0.8.4",
 ]
+
+[tool.semantic_release]
+version_source = "tag"
+upload_to_pypi = false
