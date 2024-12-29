@@ -13,6 +13,7 @@
 # Development
 
 ```
+uv sync
 fastapi dev src/main.py
 ```
 
@@ -57,4 +58,11 @@ pytest .
 ```bash
 ruff check
 mypy .
+```
+
+## Docker build
+
+```bash
+docker build -t gigachat-adapter .
+docker run -p 8000:8000 -e BEARER_TOKEN=123 -e GIGACHAT_VERIFY_SSL_CERTS=False -e GIGACHAT_CREDENTIALS=123 gigachat-adapter
 ```
