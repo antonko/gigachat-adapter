@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from gigachat import GigaChat
 from pydantic_settings import BaseSettings
 
-from .models import ModelData, ModelsResponse
+from .models import ListModelsResponse, ModelData
 
 
 class GigaChatSettings(BaseSettings):
@@ -53,7 +53,7 @@ class GigaChatService:
         )
         self._client.get_token()
 
-    def get_models(self) -> ModelsResponse:
+    def get_models(self) -> ListModelsResponse:
         raw_models = self._client.get_models()
         data = [
             ModelData(
@@ -61,7 +61,7 @@ class GigaChatService:
             )
             for m in raw_models.data
         ]
-        return ModelsResponse(data=data, object="list")
+        return ListModelsResponse(data=data, object="list")
 
 
 gigachat_service = GigaChatService()

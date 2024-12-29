@@ -5,9 +5,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from .gigachat_service import gigachat_service
-from .models import (
-    ModelsResponse,
-)
+from .models import ListModelsResponse
 
 
 class AppSettings(BaseSettings):
@@ -62,7 +60,7 @@ def get_application() -> FastAPI:
 
     @app.get(
         "/v1/models",
-        response_model=ModelsResponse,
+        response_model=ListModelsResponse,
         dependencies=[Depends(verify_token)],
     )
     async def get_models():
