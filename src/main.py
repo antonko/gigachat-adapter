@@ -5,6 +5,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from .gigachat_service import gigachat_service
+from .models.completion import ChatCompletionRequest, ChatCompletionResponse
 from .models.models import ListModelsResponse
 
 
@@ -64,7 +65,15 @@ def get_application() -> FastAPI:
         dependencies=[Depends(verify_token)],
     )
     async def get_models():
-        return gigachat_service.get_models()
+        return await gigachat_service.get_models()
+
+    @app.post(
+        "/v1/chat/completions",
+        response_model=ChatCompletionResponse,
+        dependencies=[Depends(verify_token)],
+    )
+    async def create_chat_completion(request: ChatCompletionRequest):
+        return await gigachat_service.chat(request)
 
     return app
 

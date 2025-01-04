@@ -1,7 +1,21 @@
-from dotenv import load_dotenv
+import uuid
+
 from gigachat import GigaChat
+from gigachat.models.chat import Chat, Messages
+from gigachat.models.chat_completion import ChatCompletion
+from gigachat.models.messages_role import MessagesRole as GigaChatMessagesRole
 from pydantic_settings import BaseSettings
 
+from .models.completion import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatCompletionResponseChoice,
+    ChatCompletionResponseMessage,
+    ChatCompletionResponseUsage,
+    CompletionTokensDetails,
+    MessagesRole,
+    PromptTokensDetails,
+)
 from .models.models import ListModelsResponse, ModelData
 
 
@@ -31,7 +45,6 @@ class GigaChatSettings(BaseSettings):
 
 class GigaChatService:
     def __init__(self, **kwargs):
-        load_dotenv()
         self._settings = GigaChatSettings(**kwargs)
         self._client = GigaChat(
             base_url=self._settings.base_url,
@@ -51,10 +64,12 @@ class GigaChatService:
             key_file=self._settings.key_file,
             key_file_password=self._settings.key_file_password,
         )
-        self._client.get_token()
 
-    def get_models(self) -> ListModelsResponse:
-        raw_models = self._client.get_models()
+    async def initialize(self):
+        await self._client.aget_token()
+
+    async def get_models(self) -> ListModelsResponse:
+        raw_models = await self._client.aget_models()
         data = [
             ModelData(
                 id=m.id_, object=m.object_, owned_by=m.owned_by, created=1735689600
@@ -63,5 +78,52 @@ class GigaChatService:
         ]
         return ListModelsResponse(data=data, object="list")
 
+    async def chat(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        chat_completion: ChatCompletion = await self._client.achat(
+            Chat(
+                model=request.model,
+                messages=[
+                    Messages(role=GigaChatMessagesRole(m.role), content=m.content)
+                    for m in request.messages
+                ],
+                temperature=request.temperature,
+            )
+        )
+        return ChatCompletionResponse(
+            id=str(uuid.uuid4()),
+            object="chat.completion",
+            created=chat_completion.created,
+            model=chat_completion.model,
+            choices=[
+                ChatCompletionResponseChoice(
+                    index=c.index,
+                    message=ChatCompletionResponseMessage(
+                        role=MessagesRole(c.message.role),
+                        content=c.message.content,
+                        refusal=None,
+                    ),
+                    finish_reason=(
+                        "content_filter"
+                        if c.finish_reason == "blacklist"
+                        else "tool_calls"
+                        if c.finish_reason == "function_call"
+                        else "stop"
+                        if c.finish_reason == "error"
+                        else c.finish_reason or "stop"
+                    ),
+                )
+                for c in chat_completion.choices
+            ],
+            usage=ChatCompletionResponseUsage(
+                prompt_tokens=chat_completion.usage.prompt_tokens,
+                completion_tokens=chat_completion.usage.completion_tokens,
+                total_tokens=chat_completion.usage.total_tokens,
+                prompt_tokens_details=PromptTokensDetails(),
+                completion_tokens_details=CompletionTokensDetails(),
+            ),
+            service_tier=None,
+            system_fingerprint="None",
+        )
 
-gigachat_service = GigaChatService()
+
+gigachat_service: GigaChatService = GigaChatService()
