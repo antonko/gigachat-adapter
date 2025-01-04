@@ -5,7 +5,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from .gigachat_service import gigachat_service
-from .models import ListModelsResponse
+from .models.models import ListModelsResponse
 
 
 class AppSettings(BaseSettings):

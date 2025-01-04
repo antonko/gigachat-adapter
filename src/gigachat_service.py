@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from gigachat import GigaChat
 from pydantic_settings import BaseSettings
 
-from .models import ListModelsResponse, ModelData
+from .models.models import ListModelsResponse, ModelData
 
 
 class GigaChatSettings(BaseSettings):
