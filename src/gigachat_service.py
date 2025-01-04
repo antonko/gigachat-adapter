@@ -1,4 +1,5 @@
 import uuid
+from typing import BinaryIO
 
 from gigachat import GigaChat
 from gigachat.models.chat import Chat, Messages
@@ -16,6 +17,7 @@ from .models.completion import (
     MessagesRole,
     PromptTokensDetails,
 )
+from .models.files import FilePurpose, FileUploadResponse
 from .models.models import ListModelsResponse, ModelData
 
 
@@ -124,6 +126,22 @@ class GigaChatService:
             service_tier=None,
             system_fingerprint="None",
         )
+
+    async def upload_file(
+        self, filename: str, file: BinaryIO, content_type: str, purpose: str
+    ) -> FileUploadResponse:
+        fule_upload = await self._client.aupload_file(
+            (filename, file, content_type), purpose=purpose
+        )
+        result: FileUploadResponse = FileUploadResponse(
+            id=fule_upload.id_,
+            object="file",
+            bytes=fule_upload.bytes_,
+            created_at=fule_upload.created_at,
+            filename=fule_upload.filename,
+            purpose=FilePurpose(purpose),
+        )
+        return result
 
 
 gigachat_service: GigaChatService = GigaChatService()

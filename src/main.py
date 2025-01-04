@@ -1,4 +1,6 @@
-from fastapi import Depends, FastAPI, HTTPException
+from typing import Annotated
+
+from fastapi import Depends, FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import Field
@@ -6,6 +8,7 @@ from pydantic_settings import BaseSettings
 
 from .gigachat_service import gigachat_service
 from .models.completion import ChatCompletionRequest, ChatCompletionResponse
+from .models.files import FilePurpose, FileUploadResponse
 from .models.models import ListModelsResponse
 
 
@@ -74,6 +77,22 @@ def get_application() -> FastAPI:
     )
     async def create_chat_completion(request: ChatCompletionRequest):
         return await gigachat_service.chat(request)
+
+    @app.post("/files")
+    async def upload_file(
+        file: UploadFile,
+        purpose: Annotated[FilePurpose, Form()],
+    ) -> FileUploadResponse:
+        if file.filename is None or file.content_type is None:
+            raise HTTPException(status_code=400, detail="No file uploaded")
+        uploaded = await gigachat_service.upload_file(
+            filename=file.filename,
+            file=file.file,
+            content_type=file.content_type,
+            purpose=purpose.value if purpose != FilePurpose.FINE_TUNE else "general",
+        )
+
+        return uploaded
 
     return app
 
