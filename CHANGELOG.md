@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.2.2 (2025-01-05)
+
+### Bug Fixes
+
+- Публикация в Docker Hub
+  ([`a5b6640`](https://github.com/antonko/gigachat-adapter/commit/a5b6640067c95850d1e5a76bf24435af47965d62))
+
+
 ## v0.2.1 (2025-01-05)
 
 ### Bug Fixes
