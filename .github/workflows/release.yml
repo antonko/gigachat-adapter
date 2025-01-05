@@ -56,7 +56,7 @@ jobs:
         run: docker build -t gigachat-adapter .
 
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - build
     concurrency: release
@@ -84,9 +84,9 @@ jobs:
 
       - name: Build and Push Docker image
         if: steps.release.outputs.released == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           tags: |
-            antonk0/${{ github.repository }}:latest
-            antonk0/${{ github.repository }}:${{ steps.release.outputs.version }}
+            antonk0/gigachat-adapter:latest
+            antonk0/gigachat-adapter:${{ steps.release.outputs.version }}
