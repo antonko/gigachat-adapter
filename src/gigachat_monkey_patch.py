@@ -1,22 +1,27 @@
-from typing import AsyncIterator, Optional
+from typing import Any, Dict
 
-import gigachat.api.stream_chat
+import gigachat.client
 import httpx
-from gigachat.models import Chat, ChatCompletionChunk
+from gigachat.settings import Settings
 
 
-async def asyncio(
-    client: httpx.AsyncClient,
-    *,
-    chat: Chat,
-    access_token: Optional[str] = None,
-) -> AsyncIterator[ChatCompletionChunk]:
-    kwargs = gigachat.api.stream_chat._get_kwargs(chat=chat, access_token=access_token)
-    async with client.stream(**kwargs) as response:
-        await gigachat.api.stream_chat._acheck_response(response)
-        async for line in response.aiter_lines():
-            if chunk := gigachat.api.stream_chat.parse_chunk(line, ChatCompletionChunk):
-                yield chunk
+def _get_kwargs(settings: Settings) -> Dict[str, Any]:
+    """Настройки для подключения к API GIGACHAT"""
+    kwargs = {
+        "base_url": settings.base_url,
+        "verify": settings.verify_ssl_certs,
+        "timeout": httpx.Timeout(settings.timeout),
+        "http2": True,
+    }
+    if settings.ca_bundle_file:
+        kwargs["verify"] = settings.ca_bundle_file
+    if settings.cert_file:
+        kwargs["cert"] = (
+            settings.cert_file,
+            settings.key_file,
+            settings.key_file_password,
+        )
+    return kwargs
 
 
-gigachat.api.stream_chat.asyncio = asyncio
+gigachat.client._get_kwargs = _get_kwargs
