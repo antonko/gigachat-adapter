@@ -21,5 +21,11 @@ dev = [
 ]
 
 [tool.semantic_release]
-version_source = "tag"
+version_variables = [
+    "pyproject.toml:version",
+]
+commit_parser = "angular"
+major_on_zero = false
+branch = "main"
 upload_to_pypi = false
+upload_to_release = true
