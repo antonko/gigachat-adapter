@@ -1,10 +1,11 @@
 # GigaChat OpenAI-Compatible Adapter
 
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Release](https://github.com/antonko/gigachat-adapter/actions/workflows/release.yml/badge.svg)](https://github.com/your-username/gigachat-adapter/actions/workflows/release.yml)
+[![Build](https://github.com/antonko/gigachat-adapter/actions/workflows/release.yml/badge.svg)](https://github.com/antonko/gigachat-adapter/actions/workflows/release.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/gigachat-adapter/gigachat-adapter)](https://hub.docker.com/r/gigachat-adapter/gigachat-adapter)
 
-Adapter для использования GigaChat API через интерфейс совместимый с OpenAI API. Позволяет интегрировать GigaChat в приложения, разработанные для работы с OpenAI, с минимальными изменениями кода.
+Адаптер предоставляет доступ к GigaChat API через интерфейс, совместимый с OpenAI API, позволяя интегрировать GigaChat в приложения, изначально ориентированные на OpenAI, с минимальными изменениями кода.
+
+Изначально проект был создан для подключения к сервису Open WebUI. На текущий момент реализована базовая работа с GigaChat через метод `chat/completions`, без использования дополнительных возможностей, таких как embeddings. В дальнейших планах — реализация эмбеддингов (embeddings), генерации изображений, обработки файлов и т.д.
 
 ## Features
 
@@ -12,60 +13,32 @@ Adapter для использования GigaChat API через интерфе
 
 - OpenAI-совместимый API интерфейс
 - Поддержка chat/completions API с потоковой передачей сообщений
-- Загрузка файлов
 - Swagger документация
 - Официальный Docker-образ
 
-## Quick Start
+### Запуск
 
-### Prerequisites
-
-- Python 3.12+
-- [uv](https://github.com/astral-sh/uv) package manager
-
-### Installation
+#### Using Docker (рекомендуется):
 
 ```bash
-# Clone repository
-git clone https://github.com/your-username/gigachat-adapter
-cd gigachat-adapter
-
-# Install dependencies
-uv sync
-```
-
-### Configuration
-
-1. Создайте файл `.env` в корне проекта
-2. Добавьте обязательные переменные окружения:
-
-```
-BEARER_TOKEN=your_token
-GIGACHAT_CREDENTIALS=your_gigachat_credentials
-```
-
-### Running
-
-```bash
-uv run fastapi dev src/main.py
-```
-
-Swagger документация доступна по адресу: http://localhost:8000/docs
-
-## Docker Support
-
-Build and run with Docker:
-
-```bash
-# Build image
-docker build -t gigachat-adapter .
-
-# Run container
 docker run -p 8000:8000 \
-  -e BEARER_TOKEN=your_token \
   -e GIGACHAT_CREDENTIALS=your_credentials \
-  -e GIGACHAT_VERIFY_SSL_CERTS=false \
-  gigachat-adapter
+  -e BEARER_TOKEN=your_token \
+  antonk0/gigachat-adapter:latest
+```
+
+Через Docker Compose:
+
+```yaml
+version: "3"
+services:
+  gigachat-adapter:
+    image: antonk0/gigachat-adapter:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - GIGACHAT_CREDENTIALS=your_credentials
+      - BEARER_TOKEN=your_token
 ```
 
 ## Environment Variables
@@ -106,7 +79,50 @@ Below are the environment variables you can set in your .env file:
 | ENVIRONMENT        | Нет          | Окружение (development/production)        |
 | CORS_ALLOWED_HOSTS | Нет          | Список разрешенных хостов для CORS        |
 
-## Development
+# Development
+
+## Quick Start development
+
+```bash
+# Clone repository
+git clone https://github.com/your-username/gigachat-adapter
+cd gigachat-adapter
+
+# Install dependencies
+uv sync
+```
+
+### Configuration
+
+1. Создайте файл `.env` в корне проекта
+2. Добавьте обязательные переменные окружения:
+
+```
+BEARER_TOKEN=your_token
+GIGACHAT_CREDENTIALS=your_gigachat_credentials
+```
+
+2. Local development:
+
+```bash
+uv run fastapi dev src/main.py
+```
+
+Swagger документация доступна по адресу: http://localhost:8000/docs
+
+### Ручная сборка docker-образа
+
+Build and run with Docker:
+
+```bash
+docker build -t gigachat-adapter .
+
+docker run -p 8000:8000 \
+  -e BEARER_TOKEN=your_token \
+  -e GIGACHAT_CREDENTIALS=your_credentials \
+  -e GIGACHAT_VERIFY_SSL_CERTS=false \
+  gigachat-adapter
+```
 
 ### Testing
 
