@@ -1,5 +1,5 @@
 import uuid
-from typing import BinaryIO
+from typing import AsyncIterator, BinaryIO
 
 from gigachat import GigaChat
 from gigachat.models.chat import Chat, Messages
@@ -13,6 +13,9 @@ from .models.completion import (
     ChatCompletionResponseChoice,
     ChatCompletionResponseMessage,
     ChatCompletionResponseUsage,
+    ChatCompletionStreamResponse,
+    ChatCompletionStreamResponseChoice,
+    ChatCompletionStreamResponseDelta,
     CompletionTokensDetails,
     MessagesRole,
     PromptTokensDetails,
@@ -126,6 +129,46 @@ class GigaChatService:
             service_tier=None,
             system_fingerprint="None",
         )
+
+    async def chat_stream(
+        self, request: ChatCompletionRequest
+    ) -> AsyncIterator[ChatCompletionStreamResponse]:
+        async for chunk in self._client.astream(
+            Chat(
+                model=request.model,
+                messages=[
+                    Messages(role=GigaChatMessagesRole(m.role), content=m.content)
+                    for m in request.messages
+                ],
+                temperature=request.temperature,
+            )
+        ):
+            yield ChatCompletionStreamResponse(
+                id=str(uuid.uuid4()),
+                object="chat.completion.chunk",
+                created=chunk.created,
+                model=chunk.model,
+                choices=[
+                    ChatCompletionStreamResponseChoice(
+                        index=c.index,
+                        delta=ChatCompletionStreamResponseDelta(
+                            role=MessagesRole(c.delta.role) if c.delta.role else None,
+                            content=c.delta.content,
+                            refusal=None,
+                        ),
+                        finish_reason=(
+                            "content_filter"
+                            if c.finish_reason == "blacklist"
+                            else "tool_calls"
+                            if c.finish_reason == "function_call"
+                            else "stop"
+                            if c.finish_reason == "error"
+                            else c.finish_reason
+                        ),
+                    )
+                    for c in chunk.choices
+                ],
+            )
 
     async def upload_file(
         self, filename: str, file: BinaryIO, content_type: str, purpose: str

@@ -48,6 +48,10 @@ class ChatCompletionRequest(BaseModel):
     temperature: float = Field(
         1.0, description="Sampling temperature, from 0.0 to 2.0."
     )
+    stream: bool = Field(
+        False,
+        description="Whether to stream the completion or return the full response.",
+    )
 
 
 class PromptTokensDetails(BaseModel):
@@ -94,3 +98,25 @@ class ChatCompletionResponse(BaseModel):
     system_fingerprint: str = Field(
         "None", description="Unique identifier for the completion."
     )
+
+
+class ChatCompletionStreamResponseDelta(BaseModel):
+    content: str | None = Field(None, description="The content of the message chunk")
+    role: MessagesRole | None = Field(None, description="The role of the message")
+    refusal: str | None = Field(None, description="Refusal reason if any")
+
+
+class ChatCompletionStreamResponseChoice(BaseModel):
+    index: int = Field(..., description="Index of this completion choice")
+    delta: ChatCompletionStreamResponseDelta = Field(
+        ..., description="The message delta"
+    )
+    finish_reason: str | None = Field(None, description="Reason for completion")
+
+
+class ChatCompletionStreamResponse(BaseModel):
+    id: str = Field(..., description="Unique identifier for this completion")
+    object: str = Field("chat.completion.chunk", description="Object type")
+    created: int = Field(..., description="Unix timestamp of creation")
+    model: str = Field(..., description="Model used")
+    choices: List[ChatCompletionStreamResponseChoice]

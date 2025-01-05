@@ -1,10 +1,13 @@
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
 from fastapi import Depends, FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import Field
 from pydantic_settings import BaseSettings
+
+import src.gigachat_monkey_patch  # noqa: F401
 
 from .gigachat_service import gigachat_service
 from .models.completion import ChatCompletionRequest, ChatCompletionResponse
@@ -44,6 +47,13 @@ def verify_token(
         raise HTTPException(status_code=401, detail="Invalid or missing Bearer token")
 
 
+async def stream_chat_completion(
+    request: ChatCompletionRequest,
+) -> AsyncGenerator[str, None]:
+    async for chunk in gigachat_service.chat_stream(request):
+        yield f"data: {chunk.model_dump_json()}\n\n"
+
+
 def get_application() -> FastAPI:
     settings = get_app_settings()
     app = FastAPI(
@@ -76,6 +86,11 @@ def get_application() -> FastAPI:
         dependencies=[Depends(verify_token)],
     )
     async def create_chat_completion(request: ChatCompletionRequest):
+        if request.stream:
+            return StreamingResponse(
+                stream_chat_completion(request),
+                media_type="text/event-stream",
+            )
         return await gigachat_service.chat(request)
 
     @app.post("/files")
