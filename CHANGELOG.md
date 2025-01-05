@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v0.2.1 (2025-01-05)
+
+### Bug Fixes
+
+- Пояснение за monkey patch
+  ([`9112b59`](https://github.com/antonko/gigachat-adapter/commit/9112b59e3dff6a2d5e470d2f6fb4c2d68220d9fe))
+
+### Continuous Integration
+
+- Исправлены ошибки публикации релиза
+  ([`225684d`](https://github.com/antonko/gigachat-adapter/commit/225684db83f15611c867d7a692f4d004340bebda))
+
+### Documentation
+
+- Обновлен README.md
+  ([`7180ab5`](https://github.com/antonko/gigachat-adapter/commit/7180ab5e9a3d14f6b964ee0481c03224591ebb49))
+
+- Опечатки в README.md
+  ([`6f915af`](https://github.com/antonko/gigachat-adapter/commit/6f915afc535f699d578f812d06f51ffbf65a46c2))
+
+
 ## v0.2.0 (2025-01-05)
 
 ### Bug Fixes
