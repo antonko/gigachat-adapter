@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.3.0 (2025-01-06)
+
+### Chores
+
+- Конфигурация для debug-запуска
+  ([`23f74fb`](https://github.com/antonko/gigachat-adapter/commit/23f74fb2f59f886e26e91f501f1345cce7c23835))
+
+### Features
+
+- Формат ошибки (исключения) по схеме OpenAI API
+  ([`be543f4`](https://github.com/antonko/gigachat-adapter/commit/be543f467ef4a685c603dbe8072416539a5915a9))
+
+### Refactoring
+
+- Рефакторинг структуры папок и файлов
+  ([`1b639a2`](https://github.com/antonko/gigachat-adapter/commit/1b639a2d3d69b70681f2dc1046d6f01400685553))
+
+
 ## v0.2.4 (2025-01-06)
 
 ### Bug Fixes
