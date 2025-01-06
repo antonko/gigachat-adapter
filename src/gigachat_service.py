@@ -1,5 +1,5 @@
 import uuid
-from typing import AsyncIterator, BinaryIO
+from typing import AsyncGenerator, AsyncIterator, BinaryIO
 
 from gigachat import GigaChat
 from gigachat.models.chat import Chat, Messages
@@ -185,6 +185,14 @@ class GigaChatService:
             purpose=FilePurpose(purpose),
         )
         return result
+
+    async def stream_chat_completion(
+        self,
+        request: ChatCompletionRequest,
+    ) -> AsyncGenerator[str, None]:
+        async for chunk in self.chat_stream(request):
+            yield f"data: {chunk.model_dump_json()}\n\n"
+        yield "data: [DONE]\n\n"
 
 
 gigachat_service: GigaChatService = GigaChatService()
