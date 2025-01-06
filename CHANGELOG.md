@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.2.4 (2025-01-06)
+
+### Bug Fixes
+
+- Корректное завершение ответа при stream (SSE)
+  ([`add63f9`](https://github.com/antonko/gigachat-adapter/commit/add63f9b50a525b26033b137d8f1b100fd25859c))
+
+### Documentation
+
+- Обновлен README.md
+  ([`3013ae3`](https://github.com/antonko/gigachat-adapter/commit/3013ae35bb56a84b1ea11212e155e62a5405d112))
+
+
 ## v0.2.3 (2025-01-05)
 
 ### Bug Fixes
