@@ -17,12 +17,5 @@ def verify_token(
     ):
         raise HTTPException(
             status_code=401,
-            detail={
-                "error": {
-                    "message": "Invalid or missing Bearer token",
-                    "type": "authentication",
-                    "param": None,
-                    "code": "UNAUTHORIZED",
-                }
-            },
+            detail="Invalid or missing Bearer token",
         )

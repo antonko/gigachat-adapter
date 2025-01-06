@@ -86,3 +86,29 @@ def test_chat_completions(client, httpx_mock: HTTPXMock):
     data = response.json()
     assert data["choices"][0]["message"]["content"].startswith("Вот какие варианты")
     assert data["usage"]["prompt_tokens_details"]["cached_tokens"] == 0
+
+
+def test_invalid_token(client):
+    headers = {"Authorization": "Bearer 111"}
+    response = client.get("/v1/models", headers=headers)
+    assert response.status_code == 401
+    data = response.json()
+    assert data["error"]["message"] == "Invalid or missing Bearer token"
+    assert data["error"]["type"] == "http"
+    assert data["error"]["param"] is None
+    assert data["error"]["code"] == "HTTP_EXCEPTION"
+
+
+def test_invalid_json(client):
+    headers = {
+        "Authorization": f"Bearer {TEST_BEARER_TOKEN}"
+    }  # or a valid token if needed
+    # Pass intentionally malformed JSON:
+    response = client.post(
+        "/v1/chat/completions", data="{'invalid_json': }", headers=headers
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert data["error"]["type"] == "invalid_request_error"
+    assert data["error"]["code"] == "BAD_REQUEST"
+    assert "'JSON decode error'" in data["error"]["message"]
