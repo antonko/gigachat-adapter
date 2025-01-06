@@ -1,7 +1,7 @@
 # GigaChat OpenAI-Compatible Adapter
 
 [![Build](https://github.com/antonko/gigachat-adapter/actions/workflows/release.yml/badge.svg)](https://github.com/antonko/gigachat-adapter/actions/workflows/release.yml)
-[![Docker Pulls](https://img.shields.io/docker/pulls/gigachat-adapter/gigachat-adapter)](https://hub.docker.com/r/gigachat-adapter/gigachat-adapter)
+[![Docker Pulls](https://img.shields.io/docker/pulls/antonk0/gigachat-adapter)](https://hub.docker.com/r/antonk0/gigachat-adapter)
 
 Адаптер предоставляет доступ к GigaChat API через интерфейс, совместимый с OpenAI API, позволяя интегрировать GigaChat в приложения, изначально ориентированные на OpenAI, с минимальными изменениями кода.
 
@@ -24,13 +24,13 @@
 docker run -p 8000:8000 \
   -e GIGACHAT_CREDENTIALS=your_credentials \
   -e BEARER_TOKEN=your_token \
+  -e GIGACHAT_VERIFY_SSL_CERTS=False \
   antonk0/gigachat-adapter:latest
 ```
 
 Через Docker Compose:
 
 ```yaml
-version: "3"
 services:
   gigachat-adapter:
     image: antonk0/gigachat-adapter:latest
@@ -39,6 +39,7 @@ services:
     environment:
       - GIGACHAT_CREDENTIALS=your_credentials
       - BEARER_TOKEN=your_token
+      - GIGACHAT_VERIFY_SSL_CERTS=False
 ```
 
 ## Environment Variables
