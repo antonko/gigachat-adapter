@@ -52,6 +52,7 @@ async def stream_chat_completion(
 ) -> AsyncGenerator[str, None]:
     async for chunk in gigachat_service.chat_stream(request):
         yield f"data: {chunk.model_dump_json()}\n\n"
+    yield "data: [DONE]\n\n"
 
 
 def get_application() -> FastAPI:
