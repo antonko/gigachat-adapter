@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.4.0 (2025-01-07)
+
+### Continuous Integration
+
+- Github Action для проверки Pull Request
+  ([`3b38d6f`](https://github.com/antonko/gigachat-adapter/commit/3b38d6f5e8a7ed8720682337a37fda11b1346989))
+
+### Features
+
+- Content в сообщениях как структура
+  ([`c7edf18`](https://github.com/antonko/gigachat-adapter/commit/c7edf1887ffb6c69273ccc4000116e112789a740))
+
+- Конфигурация логирование
+  ([`df38bb4`](https://github.com/antonko/gigachat-adapter/commit/df38bb4098f6716a1eb7ac6cdc6a6e7e994ba188))
+
+- Локальное сохранение хеша файла для исключения повторной загрузки в gigachat
+  ([`6fca1c1`](https://github.com/antonko/gigachat-adapter/commit/6fca1c186ad64ba6718c7adcfb65b96a90024f9a))
+
+- Реализована базовая работа с файлами в запросах чата
+  ([`87acc42`](https://github.com/antonko/gigachat-adapter/commit/87acc428d61f79456e206fe3bc015ecd54bed719))
+
+
 ## v0.3.0 (2025-01-06)
 
 ### Chores
