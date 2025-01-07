@@ -76,7 +76,7 @@ Below are the environment variables you can set in your .env file:
 | Параметр           | Обязательный | Описание                                  |
 | ------------------ | ------------ | ----------------------------------------- |
 | BEARER_TOKEN       | Да           | Токен для авторизации запросов к адаптеру |
-| DEBUG              | Нет          | Режим отладки                             |
+| DEBUG              | Нет          | Режим отладки, подробные логи             |
 | ENVIRONMENT        | Нет          | Окружение (development/production)        |
 | CORS_ALLOWED_HOSTS | Нет          | Список разрешенных хостов для CORS        |
 
