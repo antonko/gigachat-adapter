@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import logging
 import mimetypes
 import uuid
@@ -30,6 +31,7 @@ from .models.completion import (
 )
 from .models.files import FilePurpose, FileUploadResponse
 from .models.models import ListModelsResponse, ModelData
+from .core.kv_store import KVStore
 
 
 class GigaChatSettings(BaseSettings):
@@ -93,8 +95,14 @@ class GigaChatService:
         return ListModelsResponse(data=data, object="list")
 
     async def _upload_base64(self, base64_data: str) -> uuid.UUID:
-        # Загружаем изображение в GigaChat
+        # Проверяем наличие файла в хранилище
+        key = hashlib.sha256(base64_data.encode()).hexdigest()
+        kv_store = KVStore()
+        existing_id = await kv_store.get(key)
+        if existing_id:
+            return uuid.UUID(existing_id)
 
+        # Загружаем изображение в GigaChat
         header, encoded = base64_data.split(",", 1)
         data = base64.b64decode(encoded)
         mime_type = header.split(":")[1].split(";")[0]
@@ -108,18 +116,26 @@ class GigaChatService:
             (filename, file, mime_type), purpose="general"
         )
 
+        # Сохраняем данные в хранилище
+        await kv_store.set(key, str(file_upload_response.id_))
+
         return file_upload_response.id_
 
     async def _create_gigachat_request(self, request: ChatCompletionRequest) -> Chat:
         messages: list[Messages] = []
         for message in request.messages:
             messages.extend(await self._process_message(message))
-        return Chat(
+
+        result: Chat = Chat(
             model=request.model,
             messages=messages,
             temperature=request.temperature,
             stream=request.stream,
         )
+        local_logger.debug(
+            f"gigachat request: {result.json(by_alias=True, indent=2, ensure_ascii=False)}"
+        )
+        return result
 
     async def _process_message(self, message) -> list[Messages]:
         # Обрабатываем сообщение и возвращаем список сообщений
@@ -180,7 +196,6 @@ class GigaChatService:
         return finish_reason or "stop"
 
     async def chat(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
-        local_logger.debug(f"gigachat request: {request.model_dump_json(indent=2)}")
         chat_completion: ChatCompletion = await self._client.achat(
             await self._create_gigachat_request(request)
         )
@@ -218,7 +233,6 @@ class GigaChatService:
     async def stream_chat(
         self, request: ChatCompletionRequest
     ) -> AsyncIterator[ChatCompletionStreamResponse]:
-        local_logger.debug(f"gigachat request: {request.model_dump_json(indent=2)}")
         async for chunk in self._client.astream(
             await self._create_gigachat_request(request)
         ):
