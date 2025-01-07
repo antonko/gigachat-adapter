@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import AsyncGenerator, AsyncIterator, BinaryIO
 
@@ -9,6 +10,9 @@ from pydantic_settings import BaseSettings
 
 from .models.completion import (
     ChatCompletionRequest,
+    ChatCompletionRequestMessageContentAudio,
+    ChatCompletionRequestMessageContentImage,
+    ChatCompletionRequestMessageContentText,
     ChatCompletionResponse,
     ChatCompletionResponseChoice,
     ChatCompletionResponseMessage,
@@ -22,6 +26,8 @@ from .models.completion import (
 )
 from .models.files import FilePurpose, FileUploadResponse
 from .models.models import ListModelsResponse, ModelData
+
+_logger = logging.getLogger(__name__)
 
 
 class GigaChatSettings(BaseSettings):
@@ -50,6 +56,7 @@ class GigaChatSettings(BaseSettings):
 
 class GigaChatService:
     def __init__(self, **kwargs):
+        self.logger = logging.getLogger(self.__class__.__name__)
         self._settings = GigaChatSettings(**kwargs)
         self._client = GigaChat(
             base_url=self._settings.base_url,
@@ -83,16 +90,64 @@ class GigaChatService:
         ]
         return ListModelsResponse(data=data, object="list")
 
+    def _create_gigachat_request(self, request: ChatCompletionRequest) -> Chat:
+        # Конвертируем запрос от пользователя в формат, который понимает GigaChat
+        messages: list[Messages] = []
+        for message in request.messages:
+            if isinstance(message.content, str):
+                # Если контент - строка, то просто добавляем его в список сообщений
+                messages.append(
+                    Messages(
+                        role=GigaChatMessagesRole(message.role), content=message.content
+                    )
+                )
+            elif isinstance(message.content, list):
+                # Если контент - список, то обрабатываем каждый элемент
+                for content_item in message.content:
+                    match content_item:
+                        case ChatCompletionRequestMessageContentText():
+                            # Если контент - текст
+                            messages.append(
+                                Messages(
+                                    role=GigaChatMessagesRole(message.role),
+                                    content=content_item.text,
+                                )
+                            )
+                        case ChatCompletionRequestMessageContentImage():
+                            # Если контент - изображение
+                            _logger.warning(
+                                "Image content is not supported by GigaChat Adapter"
+                            )
+                        case ChatCompletionRequestMessageContentAudio():
+                            # Если контент - аудио
+                            _logger.warning(
+                                "Audio content is not supported by GigaChat Adapter"
+                            )
+                        case _:
+                            _logger.warning(
+                                "Unknown content type %s", type(content_item)
+                            )
+
+        return Chat(
+            model=request.model,
+            messages=messages,
+            temperature=request.temperature,
+            stream=request.stream,
+        )
+
+    def _map_finish_reason(self, finish_reason: str | None) -> str:
+        # Конвертируем причину завершения чата из формата GigaChat в формат API
+        if finish_reason == "blacklist":
+            return "content_filter"
+        elif finish_reason == "function_call":
+            return "tool_calls"
+        elif finish_reason == "error":
+            return "stop"
+        return finish_reason or "stop"
+
     async def chat(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         chat_completion: ChatCompletion = await self._client.achat(
-            Chat(
-                model=request.model,
-                messages=[
-                    Messages(role=GigaChatMessagesRole(m.role), content=m.content)
-                    for m in request.messages
-                ],
-                temperature=request.temperature,
-            )
+            self._create_gigachat_request(request)
         )
         return ChatCompletionResponse(
             id=str(uuid.uuid4()),
@@ -107,15 +162,7 @@ class GigaChatService:
                         content=c.message.content,
                         refusal=None,
                     ),
-                    finish_reason=(
-                        "content_filter"
-                        if c.finish_reason == "blacklist"
-                        else "tool_calls"
-                        if c.finish_reason == "function_call"
-                        else "stop"
-                        if c.finish_reason == "error"
-                        else c.finish_reason or "stop"
-                    ),
+                    finish_reason=self._map_finish_reason(c.finish_reason),
                 )
                 for c in chat_completion.choices
             ],
@@ -130,19 +177,10 @@ class GigaChatService:
             system_fingerprint="None",
         )
 
-    async def chat_stream(
+    async def stream_chat(
         self, request: ChatCompletionRequest
     ) -> AsyncIterator[ChatCompletionStreamResponse]:
-        async for chunk in self._client.astream(
-            Chat(
-                model=request.model,
-                messages=[
-                    Messages(role=GigaChatMessagesRole(m.role), content=m.content)
-                    for m in request.messages
-                ],
-                temperature=request.temperature,
-            )
-        ):
+        async for chunk in self._client.astream(self._create_gigachat_request(request)):
             yield ChatCompletionStreamResponse(
                 id=str(uuid.uuid4()),
                 object="chat.completion.chunk",
@@ -156,15 +194,7 @@ class GigaChatService:
                             content=c.delta.content,
                             refusal=None,
                         ),
-                        finish_reason=(
-                            "content_filter"
-                            if c.finish_reason == "blacklist"
-                            else "tool_calls"
-                            if c.finish_reason == "function_call"
-                            else "stop"
-                            if c.finish_reason == "error"
-                            else c.finish_reason
-                        ),
+                        finish_reason=self._map_finish_reason(c.finish_reason),
                     )
                     for c in chunk.choices
                 ],
@@ -186,11 +216,12 @@ class GigaChatService:
         )
         return result
 
-    async def stream_chat_completion(
+    async def stream_chat_sse(
         self,
         request: ChatCompletionRequest,
     ) -> AsyncGenerator[str, None]:
-        async for chunk in self.chat_stream(request):
+        # Стримим результаты чата в формате Server-Sent Events
+        async for chunk in self.stream_chat(request):
             yield f"data: {chunk.model_dump_json()}\n\n"
         yield "data: [DONE]\n\n"
 

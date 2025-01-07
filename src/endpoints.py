@@ -29,7 +29,7 @@ async def get_models():
 async def create_chat_completion(request: ChatCompletionRequest):
     if request.stream:
         return StreamingResponse(
-            gigachat_service.stream_chat_completion(request),
+            gigachat_service.stream_chat_sse(request),
             media_type="text/event-stream",
         )
     return await gigachat_service.chat(request)

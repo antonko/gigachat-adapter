@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Union
 
 from pydantic import BaseModel, Field
 
@@ -15,9 +15,60 @@ class MessagesRole(str, Enum):
     FUNCTION_IN_PROGRESS = "function_in_progress"
 
 
+class ContentType(str, Enum):
+    """Type of content in the message"""
+
+    TEXT = "text"
+    IMAGE_URL = "image_url"
+    INPUT_AUDIO = "input_audio"
+
+
+class ChatCompletionRequestMessageContentAudioInput(BaseModel):
+    data: str = Field(..., description="Base64 encoded audio data.")
+    format: str = Field(..., description="The format of the encoded audio data.")
+
+
+class ChatCompletionRequestMessageContentAudio(BaseModel):
+    type: ContentType = Field(
+        ContentType.INPUT_AUDIO, description="The type of the content part."
+    )
+    input_audio: ChatCompletionRequestMessageContentAudioInput = Field(
+        ..., description="The audio content."
+    )
+
+
+class ChatCompletionRequestMessageContentImageUrl(BaseModel):
+    url: str = Field(
+        ..., description="Either a URL of the image or the base64 encoded image data."
+    )
+
+
+class ChatCompletionRequestMessageContentImage(BaseModel):
+    type: ContentType = Field(
+        ContentType.IMAGE_URL, description="The type of the content part."
+    )
+    image_url: ChatCompletionRequestMessageContentImageUrl = Field(
+        ..., description="The image content."
+    )
+
+
+class ChatCompletionRequestMessageContentText(BaseModel):
+    type: ContentType = Field(
+        ContentType.TEXT, description="The type of the content part."
+    )
+    text: str = Field(..., description="The text content.")
+
+
+ChatCompletionRequestMessageContent = Union[
+    ChatCompletionRequestMessageContentText,
+    ChatCompletionRequestMessageContentImage | ChatCompletionRequestMessageContentAudio,
+]
+
+
 class ChatCompletionRequestMessage(BaseModel):
-    content: str = Field(
-        ..., description="The content of the message, which is the user's input."
+    content: str | List[ChatCompletionRequestMessageContent] = Field(
+        ...,
+        description="The content of the message, which is the user's input.",
     )
     role: MessagesRole = Field(
         ..., description="The role of the message, which is always 'user'."
