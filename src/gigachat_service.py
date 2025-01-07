@@ -1,5 +1,8 @@
+import base64
 import logging
+import mimetypes
 import uuid
+from io import BytesIO
 from typing import AsyncGenerator, AsyncIterator, BinaryIO
 
 from gigachat import GigaChat
@@ -8,6 +11,7 @@ from gigachat.models.chat_completion import ChatCompletion
 from gigachat.models.messages_role import MessagesRole as GigaChatMessagesRole
 from pydantic_settings import BaseSettings
 
+from .core.logging import local_logger
 from .models.completion import (
     ChatCompletionRequest,
     ChatCompletionRequestMessageContentAudio,
@@ -26,8 +30,6 @@ from .models.completion import (
 )
 from .models.files import FilePurpose, FileUploadResponse
 from .models.models import ListModelsResponse, ModelData
-
-_logger = logging.getLogger(__name__)
 
 
 class GigaChatSettings(BaseSettings):
@@ -90,49 +92,81 @@ class GigaChatService:
         ]
         return ListModelsResponse(data=data, object="list")
 
-    def _create_gigachat_request(self, request: ChatCompletionRequest) -> Chat:
-        # Конвертируем запрос от пользователя в формат, который понимает GigaChat
+    async def _upload_base64(self, base64_data: str) -> uuid.UUID:
+        # Загружаем изображение в GigaChat
+
+        header, encoded = base64_data.split(",", 1)
+        data = base64.b64decode(encoded)
+        mime_type = header.split(":")[1].split(";")[0]
+        extension = mimetypes.guess_extension(mime_type)
+        filename = f"upload_{uuid.uuid4()}{extension}"
+        file = BytesIO(data)
+
+        local_logger.debug(f"Uploading file {filename} with mime type {mime_type}")
+
+        file_upload_response = await self._client.aupload_file(
+            (filename, file, mime_type), purpose="general"
+        )
+
+        return file_upload_response.id_
+
+    async def _create_gigachat_request(self, request: ChatCompletionRequest) -> Chat:
         messages: list[Messages] = []
         for message in request.messages:
-            if isinstance(message.content, str):
-                # Если контент - строка, то просто добавляем его в список сообщений
-                messages.append(
-                    Messages(
-                        role=GigaChatMessagesRole(message.role), content=message.content
-                    )
-                )
-            elif isinstance(message.content, list):
-                # Если контент - список, то обрабатываем каждый элемент
-                for content_item in message.content:
-                    match content_item:
-                        case ChatCompletionRequestMessageContentText():
-                            # Если контент - текст
-                            messages.append(
-                                Messages(
-                                    role=GigaChatMessagesRole(message.role),
-                                    content=content_item.text,
-                                )
-                            )
-                        case ChatCompletionRequestMessageContentImage():
-                            # Если контент - изображение
-                            _logger.warning(
-                                "Image content is not supported by GigaChat Adapter"
-                            )
-                        case ChatCompletionRequestMessageContentAudio():
-                            # Если контент - аудио
-                            _logger.warning(
-                                "Audio content is not supported by GigaChat Adapter"
-                            )
-                        case _:
-                            _logger.warning(
-                                "Unknown content type %s", type(content_item)
-                            )
-
+            messages.extend(await self._process_message(message))
         return Chat(
             model=request.model,
             messages=messages,
             temperature=request.temperature,
             stream=request.stream,
+        )
+
+    async def _process_message(self, message) -> list[Messages]:
+        # Обрабатываем сообщение и возвращаем список сообщений
+        if isinstance(message.content, str):
+            return [self._create_text_message(message.role, message.content)]
+        elif isinstance(message.content, list):
+            return await self._process_message_content_list(
+                message.role, message.content
+            )
+        return []
+
+    def _create_text_message(self, role, content) -> Messages:
+        # Создаем текстовое сообщение
+        return Messages(role=GigaChatMessagesRole(role), content=content)
+
+    async def _process_message_content_list(self, role, content_list) -> list[Messages]:
+        # Обрабатываем список контента сообщения
+        messages = []
+        for content_item in content_list:
+            message = await self._process_content_item(role, content_item)
+            if message:
+                messages.append(message)
+        return messages
+
+    async def _process_content_item(self, role, content_item) -> Messages | None:
+        # Обрабатываем элемент контента сообщения
+        match content_item:
+            case ChatCompletionRequestMessageContentText():
+                return self._create_text_message(role, content_item.text)
+            case ChatCompletionRequestMessageContentImage():
+                return await self._create_image_message(
+                    role, content_item.image_url.url
+                )
+            case ChatCompletionRequestMessageContentAudio():
+                local_logger.warning(
+                    "Audio content is not supported by GigaChat Adapter"
+                )
+            case _:
+                local_logger.warning("Unknown content type %s", type(content_item))
+        return None
+
+    async def _create_image_message(self, role, image_url) -> Messages:
+        # Создаем сообщение с изображением
+        attachment_id = await self._upload_base64(image_url)
+        return Messages(
+            role=GigaChatMessagesRole(role),
+            attachments=[str(attachment_id)],
         )
 
     def _map_finish_reason(self, finish_reason: str | None) -> str:
@@ -146,8 +180,12 @@ class GigaChatService:
         return finish_reason or "stop"
 
     async def chat(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        local_logger.debug(f"gigachat request: {request.model_dump_json(indent=2)}")
         chat_completion: ChatCompletion = await self._client.achat(
-            self._create_gigachat_request(request)
+            await self._create_gigachat_request(request)
+        )
+        local_logger.debug(
+            f"gigachat response: {chat_completion.json(by_alias=True, indent=2, ensure_ascii=False)}"
         )
         return ChatCompletionResponse(
             id=str(uuid.uuid4()),
@@ -180,7 +218,13 @@ class GigaChatService:
     async def stream_chat(
         self, request: ChatCompletionRequest
     ) -> AsyncIterator[ChatCompletionStreamResponse]:
-        async for chunk in self._client.astream(self._create_gigachat_request(request)):
+        local_logger.debug(f"gigachat request: {request.model_dump_json(indent=2)}")
+        async for chunk in self._client.astream(
+            await self._create_gigachat_request(request)
+        ):
+            local_logger.debug(
+                f"gigachat response: {chunk.json(by_alias=True, indent=2, ensure_ascii=False)}"
+            )
             yield ChatCompletionStreamResponse(
                 id=str(uuid.uuid4()),
                 object="chat.completion.chunk",

@@ -28,7 +28,9 @@ async def get_models():
     dependencies=[Depends(verify_token)],
 )
 async def create_chat_completion(request: ChatCompletionRequest):
-    local_logger.debug(f"api request chat/completions: {request.model_dump_json()}")
+    local_logger.debug(
+        f"api request chat/completions: {request.model_dump_json(indent=2)}"
+    )
     if request.stream:
         return StreamingResponse(
             gigachat_service.stream_chat_sse(request),
