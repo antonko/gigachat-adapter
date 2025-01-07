@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 
+from .core.logging import local_logger
 from .core.verify_token import verify_token
 from .gigachat_service import gigachat_service
 from .models.completion import ChatCompletionRequest, ChatCompletionResponse
@@ -27,6 +28,7 @@ async def get_models():
     dependencies=[Depends(verify_token)],
 )
 async def create_chat_completion(request: ChatCompletionRequest):
+    local_logger.debug(f"api request chat/completions: {request.model_dump_json()}")
     if request.stream:
         return StreamingResponse(
             gigachat_service.stream_chat_sse(request),
