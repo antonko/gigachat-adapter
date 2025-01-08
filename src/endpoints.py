@@ -32,8 +32,19 @@ async def create_chat_completion(request: ChatCompletionRequest):
         f"api request chat/completions: {request.model_dump_json(indent=2)}"
     )
     if request.stream:
+        # Необходимо для корректных ответов если GigaChat
+        # возвращает ошибку, иначе мы уже начали стримить ответ
+
+        stream = gigachat_service.stream_chat_sse(request)
+        first_chunk = await anext(stream)
+
+        async def streaming_generator():
+            yield first_chunk
+            async for chunk in stream:
+                yield chunk
+
         return StreamingResponse(
-            gigachat_service.stream_chat_sse(request),
+            streaming_generator(),
             media_type="text/event-stream",
         )
     return await gigachat_service.chat(request)
