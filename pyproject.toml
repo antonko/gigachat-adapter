@@ -1,6 +1,6 @@
 [project]
 name = "gigachat-adapter"
-version = "0.4.0"
+version = "0.4.1"
 description = "GigaChat adapter for FastAPI"
 readme = "README.md"
 requires-python = ">=3.12"

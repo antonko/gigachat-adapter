@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.4.1 (2025-01-08)
+
+### Bug Fixes
+
+- Исправлен ответ ошибки при stream-запросе
+  ([`16ff682`](https://github.com/antonko/gigachat-adapter/commit/16ff6823bc36023781b96954331cb18ec1c215c3))
+
+### Chores
+
+- Конфигурация ruff
+  ([`4d33b61`](https://github.com/antonko/gigachat-adapter/commit/4d33b611e3758af7fd35550e358729bff3b3dd55))
+
+### Documentation
+
+- Обновленный README.md
+  ([`73accfe`](https://github.com/antonko/gigachat-adapter/commit/73accfe68bcc52275e988526009ffdc5541dafef))
+
+
 ## v0.4.0 (2025-01-07)
 
 ### Continuous Integration
