@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.0 (2025-01-11)
+
+### Features
+
+- Health check
+  ([`2f3f56f`](https://github.com/antonko/gigachat-adapter/commit/2f3f56f4322ef66caf6c8fe833d1334ffca5ee31))
+
+
 ## v0.4.1 (2025-01-08)
 
 ### Bug Fixes
