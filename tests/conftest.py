@@ -9,6 +9,7 @@ from pytest_httpx import HTTPXMock
 TEST_BEARER_TOKEN = "test_token"
 os.environ["BEARER_TOKEN"] = TEST_BEARER_TOKEN
 os.environ["GIGACHAT_CREDENTIALS"] = "test_credentials"
+os.environ["DEBUG"] = "false"
 
 
 from src.main import get_application  # noqa: E402

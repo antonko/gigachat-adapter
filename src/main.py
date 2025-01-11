@@ -1,3 +1,4 @@
+import gigachat.exceptions
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,7 @@ def get_application() -> FastAPI:
         description="Connector to GigaChat API using OpenAI",
         debug=settings.debug,
         cors_allowed_origins=settings.cors_allowed_hosts,
+        version=settings.version,
     )
 
     if settings.cors_allowed_hosts:
@@ -59,6 +61,19 @@ def get_application() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def exception_handler(request, exc):
+        return JSONResponse(
+            status_code=500,
+            content=ErrorResponse(
+                error=ErrorDetail(
+                    message=str(exc),
+                    type="http",
+                    code="HTTP_EXCEPTION",
+                )
+            ).model_dump(),
+        )
+
+    @app.exception_handler(gigachat.exceptions.ResponseError)
+    async def response_error_handler(request, exc):
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(
