@@ -2,10 +2,18 @@ name: Release
 on:
   push:
     branches: ["main"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "Dockerfile"
+      - ".github/**"
 
 jobs:
   check:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +36,10 @@ jobs:
 
   test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
@@ -36,8 +48,8 @@ jobs:
         with:
           version: "0.5.13"
 
-      - name: Set up Python
-        run: uv python install
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --all-extras --dev
@@ -45,20 +57,11 @@ jobs:
       - name: Run tests
         run: uv run pytest .
 
-  build:
+  release:
     runs-on: ubuntu-24.04
     needs:
       - check
       - test
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: docker build -t gigachat-adapter .
-
-  release:
-    runs-on: ubuntu-24.04
-    needs:
-      - build
     concurrency: release
 
     permissions:
@@ -75,18 +78,23 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+  docker:
+    runs-on: ubuntu-24.04
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Docker Login
-        if: steps.release.outputs.released == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and Push Docker image
-        if: steps.release.outputs.released == 'true'
         uses: docker/build-push-action@v6
         with:
           push: true
           tags: |
             antonk0/gigachat-adapter:latest
-            antonk0/gigachat-adapter:${{ steps.release.outputs.version }}
+            antonk0/gigachat-adapter:${{ needs.release.outputs.version }}
