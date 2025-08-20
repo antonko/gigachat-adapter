@@ -128,18 +128,6 @@ class ChatCompletionRequest(BaseModel):
         None,
         description="Controls how the model responds to tool calls (OpenAI format)",
     )
-    # GigaChat specific parameters
-    max_tokens: Optional[int] = Field(
-        None, description="Maximum number of tokens to generate"
-    )
-    max_results: Optional[int] = Field(
-        1, description="Maximum number of results to return"
-    )
-    repetition_penalty: Optional[float] = Field(
-        1.0, description="Repetition penalty, from 0.0 to 2.0"
-    )
-    top_p: Optional[float] = Field(None, description="Nucleus sampling parameter")
-    top_k: Optional[int] = Field(None, description="Top-k sampling parameter")
 
 
 class ToolCall(BaseModel):

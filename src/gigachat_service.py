@@ -173,12 +173,6 @@ class GigaChatService:
             stream=request.stream,
             functions=functions,
             function_call=function_call,
-            # Add GigaChat specific parameters
-            max_tokens=request.max_tokens,
-            max_results=request.max_results,
-            repetition_penalty=request.repetition_penalty,
-            top_p=request.top_p,
-            top_k=request.top_k,
         )
         local_logger.debug(
             f"gigachat request: {result.json(by_alias=True, indent=2, ensure_ascii=False)}"
