@@ -4,14 +4,17 @@ import logging
 import mimetypes
 import uuid
 from io import BytesIO
-from typing import AsyncGenerator, AsyncIterator, BinaryIO
+from typing import AsyncGenerator, AsyncIterator, BinaryIO, Dict, Union
 
 from gigachat import GigaChat
 from gigachat.models.chat import Chat, Messages
 from gigachat.models.chat_completion import ChatCompletion
+from gigachat.models.chat_function_call import ChatFunctionCall
+from gigachat.models.function import Function as GigaChatFunction
 from gigachat.models.messages_role import MessagesRole as GigaChatMessagesRole
 from pydantic_settings import BaseSettings
 
+from .core.kv_store import KVStore
 from .core.logging import local_logger
 from .models.completion import (
     ChatCompletionRequest,
@@ -28,10 +31,11 @@ from .models.completion import (
     CompletionTokensDetails,
     MessagesRole,
     PromptTokensDetails,
+    Tool,
+    ToolCall,
 )
 from .models.files import FilePurpose, FileUploadResponse
 from .models.models import ListModelsResponse, ModelData
-from .core.kv_store import KVStore
 
 
 class GigaChatSettings(BaseSettings):
@@ -121,16 +125,54 @@ class GigaChatService:
 
         return file_upload_response.id_
 
+    def _convert_tool_to_gigachat_function(self, tool: Tool) -> GigaChatFunction:
+        """Convert OpenAI Tool format to GigaChat Function format"""
+        function_data = tool.function
+        return GigaChatFunction(
+            name=function_data.get("name", ""),
+            description=function_data.get("description"),
+            parameters=function_data.get("parameters"),
+        )
+
+    def _convert_tool_choice_to_gigachat_function_call(
+        self, tool_choice: Union[str, Dict[str, str]]
+    ) -> ChatFunctionCall | str | None:
+        """Convert tool_choice parameter to GigaChat function_call format"""
+        if isinstance(tool_choice, str):
+            return tool_choice
+        elif isinstance(tool_choice, dict):
+            return ChatFunctionCall(
+                name=tool_choice.get("name", ""),
+                partial_arguments=tool_choice.get("partial_arguments"),
+            )
+        return None
+
     async def _create_gigachat_request(self, request: ChatCompletionRequest) -> Chat:
         messages: list[Messages] = []
         for message in request.messages:
             messages.extend(await self._process_message(message))
+
+        # Convert tools to GigaChat functions format
+        functions = None
+        if request.tools:
+            functions = [
+                self._convert_tool_to_gigachat_function(t) for t in request.tools
+            ]
+
+        # Convert tool_choice to GigaChat function_call format
+        function_call = None
+        if request.tool_choice:
+            function_call = self._convert_tool_choice_to_gigachat_function_call(
+                request.tool_choice
+            )
 
         result: Chat = Chat(
             model=request.model,
             messages=messages,
             temperature=request.temperature,
             stream=request.stream,
+            functions=functions,
+            function_call=function_call,
         )
         local_logger.debug(
             f"gigachat request: {result.json(by_alias=True, indent=2, ensure_ascii=False)}"
@@ -195,6 +237,45 @@ class GigaChatService:
             return "stop"
         return finish_reason or "stop"
 
+    def _convert_gigachat_function_call_to_tool_call(
+        self, gigachat_function_call
+    ) -> ToolCall | None:
+        """Convert GigaChat FunctionCall to OpenAI ToolCall format"""
+        if gigachat_function_call:
+            return ToolCall(
+                id=str(uuid.uuid4()),
+                type="function",
+                function={
+                    "name": gigachat_function_call.name,
+                    "arguments": gigachat_function_call.arguments or {},
+                },
+            )
+        return None
+
+    def _get_tool_calls_from_function_call(
+        self, gigachat_function_call: ChatFunctionCall | None
+    ) -> list[ToolCall] | None:
+        """Convert GigaChat FunctionCall to OpenAI ToolCall format"""
+        if gigachat_function_call:
+            tool_call = self._convert_gigachat_function_call_to_tool_call(
+                gigachat_function_call
+            )
+            if tool_call:
+                return [tool_call]
+        return None
+
+    def _get_tool_calls_from_function_call_stream(
+        self, gigachat_function_call: ChatFunctionCall | None
+    ) -> list[ToolCall] | None:
+        """Convert GigaChat FunctionCall to OpenAI ToolCall format for streaming"""
+        if gigachat_function_call:
+            tool_call = self._convert_gigachat_function_call_to_tool_call(
+                gigachat_function_call
+            )
+            if tool_call:
+                return [tool_call]
+        return None
+
     async def chat(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         chat_completion: ChatCompletion = await self._client.achat(
             await self._create_gigachat_request(request)
@@ -214,6 +295,9 @@ class GigaChatService:
                         role=MessagesRole(c.message.role),
                         content=c.message.content,
                         refusal=None,
+                        tool_calls=self._get_tool_calls_from_function_call(
+                            c.message.function_call
+                        ),
                     ),
                     finish_reason=self._map_finish_reason(c.finish_reason),
                 )
@@ -251,6 +335,11 @@ class GigaChatService:
                             role=MessagesRole(c.delta.role) if c.delta.role else None,
                             content=c.delta.content,
                             refusal=None,
+                            tool_calls=self._get_tool_calls_from_function_call_stream(
+                                c.delta.function_call
+                            )
+                            if hasattr(c.delta, "function_call")
+                            else None,
                         ),
                         finish_reason=self._map_finish_reason(c.finish_reason),
                     )

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -75,15 +75,32 @@ class ChatCompletionRequestMessage(BaseModel):
     )
 
 
-class ChatCompletionResponseMessage(BaseModel):
-    content: str = Field(
-        ..., description="The content of the message, which is the user's input."
+class ToolParameters(BaseModel):
+    """Parameters for a tool"""
+
+    type: str = Field("object", description="The type of the parameters object")
+    properties: Optional[Dict[str, Any]] = Field(
+        None, description="The properties of the parameters"
     )
-    role: MessagesRole = Field(
-        ..., description="The role of the message, which is always 'user'."
+    required: Optional[List[str]] = Field(None, description="Required parameter names")
+
+
+class Tool(BaseModel):
+    """A tool that can be called by the model (OpenAI format)"""
+
+    type: str = Field("function", description="The type of the tool, always 'function'")
+    function: Dict[str, Any] = Field(..., description="The function definition")
+
+
+class Function(BaseModel):
+    """A function that can be called by the model (GigaChat format)"""
+
+    name: str = Field(..., description="The name of the function")
+    description: Optional[str] = Field(
+        None, description="A description of what the function does"
     )
-    refusal: str | None = Field(
-        description="The role of the message, which is always 'user'."
+    parameters: Optional[ToolParameters] = Field(
+        None, description="The parameters the function accepts"
     )
 
 
@@ -102,6 +119,48 @@ class ChatCompletionRequest(BaseModel):
     stream: bool = Field(
         False,
         description="Whether to stream the completion or return the full response.",
+    )
+    tools: Optional[List[Tool]] = Field(
+        None,
+        description="A list of tools the model may generate JSON inputs for (OpenAI format)",
+    )
+    tool_choice: Optional[Union[str, Dict[str, str]]] = Field(
+        None,
+        description="Controls how the model responds to tool calls (OpenAI format)",
+    )
+
+
+class ToolCall(BaseModel):
+    """A tool call made by the model (OpenAI format)"""
+
+    id: str = Field(..., description="The ID of the tool call")
+    type: str = Field(
+        "function", description="The type of the tool call, always 'function'"
+    )
+    function: Dict[str, Any] = Field(..., description="The function call details")
+
+
+class FunctionCall(BaseModel):
+    """A function call made by the model (GigaChat format)"""
+
+    name: str = Field(..., description="The name of the function to call")
+    arguments: Optional[Dict[str, Any]] = Field(
+        None, description="The arguments to call the function with"
+    )
+
+
+class ChatCompletionResponseMessage(BaseModel):
+    content: str = Field(
+        ..., description="The content of the message, which is the user's input."
+    )
+    role: MessagesRole = Field(
+        ..., description="The role of the message, which is always 'user'."
+    )
+    refusal: str | None = Field(
+        description="The role of the message, which is always 'user'."
+    )
+    tool_calls: Optional[List[ToolCall]] = Field(
+        None, description="The tool calls made by the model (OpenAI format)"
     )
 
 
@@ -155,6 +214,9 @@ class ChatCompletionStreamResponseDelta(BaseModel):
     content: str | None = Field(None, description="The content of the message chunk")
     role: MessagesRole | None = Field(None, description="The role of the message")
     refusal: str | None = Field(None, description="Refusal reason if any")
+    tool_calls: Optional[List[ToolCall]] = Field(
+        None, description="The tool calls delta"
+    )
 
 
 class ChatCompletionStreamResponseChoice(BaseModel):
