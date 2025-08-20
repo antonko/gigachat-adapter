@@ -182,14 +182,14 @@ class GigaChatService:
             # Create cleaned parameters structure using ToolParameters
             from .models.completion import ToolParameters
 
-            cleaned_parameters = ToolParameters(
+            tool_params = ToolParameters(
                 type=parameters.get("type", "object"),
                 properties=cleaned_properties,
                 required=parameters.get("required", []),
             )
 
             # Convert to dict for GigaChat Function
-            cleaned_parameters = cleaned_parameters.model_dump()
+            cleaned_parameters = tool_params.model_dump()
         else:
             cleaned_parameters = None
 
@@ -197,7 +197,7 @@ class GigaChatService:
         gigachat_function = GigaChatFunction(
             name=function_data.get("name", ""),
             description=function_data.get("description"),
-            parameters=cleaned_parameters if cleaned_parameters else None,
+            parameters=cleaned_parameters if cleaned_parameters else None,  # type: ignore
         )
 
         local_logger.debug(f"Created GigaChat function: {gigachat_function}")
@@ -208,7 +208,7 @@ class GigaChatService:
             or gigachat_function.return_parameters is None
         ):
             # Create a basic return_parameters structure
-            gigachat_function.return_parameters = {
+            return_params = {
                 "type": "object",
                 "properties": {
                     "status": {
@@ -219,9 +219,17 @@ class GigaChatService:
                     "result": {
                         "type": "object",
                         "description": "Result of the function execution",
+                        "properties": {
+                            "data": {
+                                "type": "string",
+                                "description": "Function execution result data",
+                            }
+                        },
                     },
                 },
             }
+            # Use setattr to avoid type checking issues
+            setattr(gigachat_function, "return_parameters", return_params)
 
         return gigachat_function
 
