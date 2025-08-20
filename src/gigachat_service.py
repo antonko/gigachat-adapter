@@ -129,12 +129,78 @@ class GigaChatService:
         """Convert OpenAI Tool format to GigaChat Function format"""
         function_data = tool.function
 
+        local_logger.debug(f"Converting tool: {tool.function.get('name')}")
+        local_logger.debug(f"Tool parameters: {function_data.get('parameters')}")
+
+        # Clean up parameters to match GigaChat API requirements
+        parameters = function_data.get("parameters", {})
+        if parameters:
+            # Remove any problematic fields that GigaChat doesn't support
+            cleaned_properties = {}
+            if "properties" in parameters:
+                for prop_name, prop_value in parameters["properties"].items():
+                    # Validate and clean property type
+                    prop_type = prop_value.get("type", "string")
+
+                    # Only support basic types that GigaChat definitely supports
+                    if prop_type not in [
+                        "string",
+                        "integer",
+                        "number",
+                        "boolean",
+                        "object",
+                        "array",
+                    ]:
+                        local_logger.warning(
+                            f"Unsupported property type '{prop_type}' for '{prop_name}', defaulting to string"
+                        )
+                        prop_type = "string"
+
+                    # Create a clean property without problematic fields
+                    clean_prop = {
+                        "type": prop_type,
+                        "description": prop_value.get("description", ""),
+                    }
+
+                    # Only add enum if it's a simple list and type is string
+                    if (
+                        prop_type == "string"
+                        and "enum" in prop_value
+                        and isinstance(prop_value["enum"], list)
+                    ):
+                        clean_prop["enum"] = prop_value["enum"]
+
+                    # Only add numeric constraints for numeric types
+                    if prop_type in ["integer", "number"]:
+                        if "minimum" in prop_value:
+                            clean_prop["minimum"] = prop_value["minimum"]
+                        if "maximum" in prop_value:
+                            clean_prop["maximum"] = prop_value["maximum"]
+
+                    cleaned_properties[prop_name] = clean_prop
+
+            # Create cleaned parameters structure using ToolParameters
+            from .models.completion import ToolParameters
+
+            cleaned_parameters = ToolParameters(
+                type=parameters.get("type", "object"),
+                properties=cleaned_properties,
+                required=parameters.get("required", []),
+            )
+
+            # Convert to dict for GigaChat Function
+            cleaned_parameters = cleaned_parameters.model_dump()
+        else:
+            cleaned_parameters = None
+
         # Create basic function structure
         gigachat_function = GigaChatFunction(
             name=function_data.get("name", ""),
             description=function_data.get("description"),
-            parameters=function_data.get("parameters"),
+            parameters=cleaned_parameters if cleaned_parameters else None,
         )
+
+        local_logger.debug(f"Created GigaChat function: {gigachat_function}")
 
         # Add return_parameters if not present (GigaChat API requirement)
         if (
@@ -220,6 +286,12 @@ class GigaChatService:
         local_logger.debug(
             f"gigachat request: {result.json(by_alias=True, indent=2, ensure_ascii=False)}"
         )
+        local_logger.debug(f"Functions being sent: {functions}")
+        if functions:
+            for i, func in enumerate(functions):
+                local_logger.debug(
+                    f"Function {i}: {func.json(by_alias=True, indent=2, ensure_ascii=False)}"
+                )
         return result
 
     async def _process_message(self, message) -> list[Messages]:
