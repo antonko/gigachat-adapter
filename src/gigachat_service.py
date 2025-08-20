@@ -314,6 +314,11 @@ class GigaChatService:
 
     def _create_text_message(self, role, content) -> Messages:
         # Создаем текстовое сообщение
+        # Convert 'tool' role to 'assistant' for chat history with function_call
+        if role == "tool":
+            role = "assistant"
+            local_logger.debug("Converting role 'tool' to 'assistant' for chat history")
+
         return Messages(role=GigaChatMessagesRole(role), content=content)
 
     async def _process_message_content_list(self, role, content_list) -> list[Messages]:
@@ -344,6 +349,13 @@ class GigaChatService:
 
     async def _create_image_message(self, role, image_url) -> Messages:
         # Создаем сообщение с изображением
+        # Convert 'tool' role to 'assistant' for chat history
+        if role == "tool":
+            role = "assistant"
+            local_logger.debug(
+                "Converting role 'tool' to 'assistant' for image message"
+            )
+
         attachment_id = await self._upload_base64(image_url)
         return Messages(
             role=GigaChatMessagesRole(role),
@@ -365,7 +377,11 @@ class GigaChatService:
     ) -> ToolCall | None:
         """Convert GigaChat FunctionCall to OpenAI ToolCall format"""
         if gigachat_function_call:
-            return ToolCall(
+            local_logger.debug(
+                f"Converting GigaChat function_call: {gigachat_function_call}"
+            )
+
+            tool_call = ToolCall(
                 id=str(uuid.uuid4()),
                 type="function",
                 function={
@@ -373,18 +389,31 @@ class GigaChatService:
                     "arguments": gigachat_function_call.arguments or {},
                 },
             )
+
+            local_logger.debug(f"Converted to OpenAI ToolCall: {tool_call}")
+            return tool_call
         return None
 
     def _get_tool_calls_from_function_call(
         self, gigachat_function_call
     ) -> list[ToolCall] | None:
         """Convert GigaChat FunctionCall to OpenAI ToolCall format"""
+        local_logger.debug(f"Processing function_call: {gigachat_function_call}")
+
         if gigachat_function_call:
             tool_call = self._convert_gigachat_function_call_to_tool_call(
                 gigachat_function_call
             )
             if tool_call:
+                local_logger.debug(f"Created tool_calls list: [{tool_call}]")
                 return [tool_call]
+            else:
+                local_logger.warning("Failed to convert function_call to tool_call")
+        else:
+            local_logger.debug(
+                "No function_call provided, returning None for tool_calls"
+            )
+
         return None
 
     def _get_tool_calls_from_function_call_stream(
@@ -406,28 +435,29 @@ class GigaChatService:
         local_logger.debug(
             f"gigachat response: {chat_completion.json(by_alias=True, indent=2, ensure_ascii=False)}"
         )
+        choices = [
+            ChatCompletionResponseChoice(
+                index=c.index,
+                message=ChatCompletionResponseMessage(
+                    role=MessagesRole(c.message.role),
+                    content=c.message.content,
+                    refusal=None,
+                    tool_calls=self._get_tool_calls_from_function_call(
+                        c.message.function_call
+                        if hasattr(c.message, "function_call")
+                        else None
+                    ),
+                ),
+                finish_reason=self._map_finish_reason(c.finish_reason),
+            )
+            for c in chat_completion.choices
+        ]
         return ChatCompletionResponse(
             id=str(uuid.uuid4()),
             object="chat.completion",
             created=chat_completion.created,
             model=chat_completion.model,
-            choices=[
-                ChatCompletionResponseChoice(
-                    index=c.index,
-                    message=ChatCompletionResponseMessage(
-                        role=MessagesRole(c.message.role),
-                        content=c.message.content,
-                        refusal=None,
-                        tool_calls=self._get_tool_calls_from_function_call(
-                            c.message.function_call
-                            if hasattr(c.message, "function_call")
-                            else None
-                        ),
-                    ),
-                    finish_reason=self._map_finish_reason(c.finish_reason),
-                )
-                for c in chat_completion.choices
-            ],
+            choices=choices,
             usage=ChatCompletionResponseUsage(
                 prompt_tokens=chat_completion.usage.prompt_tokens,
                 completion_tokens=chat_completion.usage.completion_tokens,
@@ -437,6 +467,11 @@ class GigaChatService:
             ),
             service_tier=None,
             system_fingerprint="None",
+        )
+
+        # Log the final response for debugging
+        local_logger.debug(
+            f"Final response tool_calls: {[choice.message.tool_calls for choice in choices]}"
         )
 
     async def stream_chat(
