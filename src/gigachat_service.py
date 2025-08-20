@@ -4,7 +4,7 @@ import logging
 import mimetypes
 import uuid
 from io import BytesIO
-from typing import AsyncGenerator, AsyncIterator, BinaryIO, Dict, Union
+from typing import AsyncGenerator, AsyncIterator, BinaryIO, Dict, Literal, Union
 
 from gigachat import GigaChat
 from gigachat.models.chat import Chat, Messages
@@ -128,11 +128,36 @@ class GigaChatService:
     def _convert_tool_to_gigachat_function(self, tool: Tool) -> GigaChatFunction:
         """Convert OpenAI Tool format to GigaChat Function format"""
         function_data = tool.function
-        return GigaChatFunction(
+
+        # Create basic function structure
+        gigachat_function = GigaChatFunction(
             name=function_data.get("name", ""),
             description=function_data.get("description"),
             parameters=function_data.get("parameters"),
         )
+
+        # Add return_parameters if not present (GigaChat API requirement)
+        if (
+            not hasattr(gigachat_function, "return_parameters")
+            or gigachat_function.return_parameters is None
+        ):
+            # Create a basic return_parameters structure
+            gigachat_function.return_parameters = {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "description": "Status of the function execution",
+                        "enum": ["success", "error"],
+                    },
+                    "result": {
+                        "type": "object",
+                        "description": "Result of the function execution",
+                    },
+                },
+            }
+
+        return gigachat_function
 
     def _convert_tool_choice_to_gigachat_function_call(
         self, tool_choice: Union[str, Dict[str, str]]
@@ -141,10 +166,17 @@ class GigaChatService:
         if isinstance(tool_choice, str):
             return tool_choice
         elif isinstance(tool_choice, dict):
-            return ChatFunctionCall(
-                name=tool_choice.get("name", ""),
-                partial_arguments=tool_choice.get("partial_arguments"),
-            )
+            partial_args = tool_choice.get("partial_arguments")
+            if partial_args and isinstance(partial_args, dict):
+                return ChatFunctionCall(
+                    name=tool_choice.get("name", ""),
+                    partial_arguments=partial_args,
+                )
+            else:
+                return ChatFunctionCall(
+                    name=tool_choice.get("name", ""),
+                    partial_arguments=None,
+                )
         return None
 
     async def _create_gigachat_request(self, request: ChatCompletionRequest) -> Chat:
@@ -160,11 +192,22 @@ class GigaChatService:
             ]
 
         # Convert tool_choice to GigaChat function_call format
-        function_call = None
+        function_call: Union[Literal["auto", "none"], ChatFunctionCall, None] = None
         if request.tool_choice:
-            function_call = self._convert_tool_choice_to_gigachat_function_call(
+            converted = self._convert_tool_choice_to_gigachat_function_call(
                 request.tool_choice
             )
+            # Ensure function_call is the correct type for Chat
+            if isinstance(converted, str):
+                if converted == "auto":
+                    function_call = "auto"
+                elif converted == "none":
+                    function_call = "none"
+                else:
+                    function_call = "auto"  # Default to auto if invalid string
+            elif isinstance(converted, ChatFunctionCall):
+                function_call = converted
+            # If converted is None, function_call remains None
 
         result: Chat = Chat(
             model=request.model,
@@ -253,7 +296,7 @@ class GigaChatService:
         return None
 
     def _get_tool_calls_from_function_call(
-        self, gigachat_function_call: ChatFunctionCall | None
+        self, gigachat_function_call
     ) -> list[ToolCall] | None:
         """Convert GigaChat FunctionCall to OpenAI ToolCall format"""
         if gigachat_function_call:
@@ -265,7 +308,7 @@ class GigaChatService:
         return None
 
     def _get_tool_calls_from_function_call_stream(
-        self, gigachat_function_call: ChatFunctionCall | None
+        self, gigachat_function_call
     ) -> list[ToolCall] | None:
         """Convert GigaChat FunctionCall to OpenAI ToolCall format for streaming"""
         if gigachat_function_call:
@@ -297,6 +340,8 @@ class GigaChatService:
                         refusal=None,
                         tool_calls=self._get_tool_calls_from_function_call(
                             c.message.function_call
+                            if hasattr(c.message, "function_call")
+                            else None
                         ),
                     ),
                     finish_reason=self._map_finish_reason(c.finish_reason),
