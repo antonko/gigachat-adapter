@@ -11,6 +11,7 @@ class MessagesRole(str, Enum):
     SYSTEM = "system"
     USER = "user"
     FUNCTION = "function"
+    TOOL = "tool"  # OpenAI format for tool results from external systems
     SEARCH_RESULT = "search_result"
     FUNCTION_IN_PROGRESS = "function_in_progress"
 
