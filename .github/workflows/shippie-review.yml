@@ -1,0 +1,31 @@
+name: Shippie Review (fork-safe)
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    environment: shippie
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR HEAD (root)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Shippie 🚢
+        uses: mattzcarey/shippie@v0.20.0
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MODEL_STRING: "openai:gpt-4.1"
+          REVIEW_LANGUAGE: "Russian"
+          TELEMETRY: "false"
