@@ -8,22 +8,6 @@ permissions:
   contents: read
 
 jobs:
-  run_code_review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Shippie 🚢
-        uses: mattzcarey/shippie@v0.20.0
-        with:
-          GITHUB_TOKEN: ${{ github.token }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          MODEL_STRING: "openai:gpt-4.1"
-          REVIEW_LANGUAGE: "Russian"
-          TELEMETRY: "false"
-
   check:
     runs-on: ubuntu-24.04
     steps:
