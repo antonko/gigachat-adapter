@@ -11,6 +11,13 @@ max_model_tokens = 32000
 [pr_description]
 generate_ai_title = false
 
+[github_app]
+pr_commands = [
+    "/describe",
+    "/review",
+    "/improve",
+]
+
 [pr_reviewer]
 require_tests_review = true
 require_score_review = true
