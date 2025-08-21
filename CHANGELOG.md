@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.6.0 (2025-08-21)
+
+### Continuous Integration
+
+- Переделан CI для корректной работы с версиям
+  ([`9085c82`](https://github.com/antonko/gigachat-adapter/commit/9085c823892f81d06f1702ad44362c31f0feec0c))
+
+### Features
+
+- Анализ кода с помощью AI Agent (Shippie) при проверке PR
+  ([#3](https://github.com/antonko/gigachat-adapter/pull/3),
+  [`b6f4f50`](https://github.com/antonko/gigachat-adapter/commit/b6f4f50701c1ce8d5e10e0d92bb965048d21146d))
+
+* feat: enhance CI workflow with Shippie integration and fetch-depth configuration * feat: update PR
+  workflow with permissions and Shippie configuration
+
+
 ## v0.5.0 (2025-01-11)
 
 ### Features
