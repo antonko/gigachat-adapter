@@ -21,6 +21,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           MODEL_STRING: "openai:gpt-4.1"
           BASE_URL: "https://models.github.ai/inference"
+          OPENAI_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_SHA: ${{ github.sha }}
           REVIEW_LANGUAGE: "Russian"
           TELEMETRY: "false"
 
