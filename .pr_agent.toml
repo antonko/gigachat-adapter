@@ -1,0 +1,63 @@
+[config]
+response_language = "ru-RU"
+enable_review_labels_effort = false
+enable_comment_approval = true
+model = "gpt-4.1"
+fallback_models = ["gpt-4o"]
+max_description_tokens = 2500
+max_commits_tokens = 3500
+max_model_tokens = 32000
+
+[pr_description]
+generate_ai_title = false
+
+[pr_reviewer]
+require_tests_review = true
+require_score_review = true
+enable_pr_type = false
+extra_instructions = """
+Use the following project standards for review:
+1. **Architecture**
+   • Follow the project structure: endpoints/, models/, core/
+   • Maintain compatibility with OpenAI API
+2. **Naming Conventions**
+   • Functions and variables — snake_case for Python
+   • Constants — UPPER_CASE
+   • Classes — PascalCase
+3. **Security**
+   • Verify authentication through BEARER_TOKEN
+   • Validate input data using Pydantic
+4. **Code Style**
+   • Use type hints
+   • Write asynchronous code where appropriate
+   • Document API through docstrings
+5. **Testing**
+   • Each new functionality must have tests
+6. **Modern Python Practices**
+   • **Async/Await**: Use asynchronous programming for I/O-bound operations. Ensure that blocking operations run in separate threads with `run_in_threadpool`.
+   • **Dependency Injection**: Utilize FastAPI's dependency injection system for reusable components, validation, and database connections.
+   • **Pydantic Models**: Define separate models for requests, responses, and database entities. Use field validators for complex validation logic.
+   • **Error Handling**: Raise specific exceptions and handle them consistently through exception handlers.
+   • **Type Annotations**: Use comprehensive type hints including generics and unions for better code readability and IDE support.
+   • **Domain-Driven Structure**: Organize code by domains or features rather than by technical layers.
+   • **Small Functions**: Write small, focused functions that do one thing well and have clear input/output contracts.
+   • **Documentation**: Use descriptive docstrings with clear examples. Document API endpoints with response models and status codes.
+   • **Configuration Management**: Separate configuration from code using environment variables and Pydantic's BaseSettings.
+   • **Explicit over Implicit**: Prefer explicit, clear code over clever tricks. Write code that is easy to understand and maintain.
+   • **Security Best Practices**: Validate all inputs, use proper authentication mechanisms, and protect against common vulnerabilities.
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+When forming suggestions, adhere to the project standards:
+• Suggest using environment variables for configuration
+• Ensure proper error handling through exception handlers
+• Use Pydantic for data validation
+• Consider the asynchronous nature of FastAPI
+• Follow code formatting rules with ruff and mypy
+• Implement comprehensive testing for new functionality
+• Prefer small, focused functions with clear responsibilities
+• Use type annotations for better code readability
+• Document API endpoints with examples and status codes
+• Apply security best practices for all input handling
+"""
