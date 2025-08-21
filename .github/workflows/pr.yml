@@ -19,7 +19,7 @@ jobs:
         uses: mattzcarey/shippie@v0.20.0
         with:
           GITHUB_TOKEN: ${{ github.token }}
-          MODEL_STRING: "openai:gpt-4.1"
+          MODEL_STRING: "openai:gpt-4.1-mini"
           BASE_URL: "https://models.github.ai/inference"
           OPENAI_API_KEY: ${{ secrets.GITHUB_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
