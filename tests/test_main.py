@@ -88,6 +88,128 @@ def test_chat_completions(client, httpx_mock: HTTPXMock):
     assert data["usage"]["prompt_tokens_details"]["cached_tokens"] == 0
 
 
+def test_chat_completions_with_functions(client, httpx_mock: HTTPXMock):
+    httpx_mock.add_response(
+        json={
+            "choices": [
+                {
+                    "message": {
+                        "content": "",
+                        "role": "assistant",
+                        "function_call": {
+                            "name": "get_weather",
+                            "arguments": {"location": "Moscow", "unit": "celsius"},
+                        },
+                    },
+                    "index": 0,
+                    "finish_reason": "function_call",
+                }
+            ],
+            "created": 1736023521,
+            "model": "GigaChat:1.0.26.20",
+            "object": "chat.completion",
+            "usage": {"prompt_tokens": 32, "completion_tokens": 63, "total_tokens": 95},
+        },
+        url="https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+        method="POST",
+    )
+
+    payload = {
+        "model": "GigaChat",
+        "stream": False,
+        "messages": [
+            {"role": "user", "content": "What's the weather like in Moscow?"},
+        ],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get the current weather in a given location",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "The city and state, e.g. San Francisco, CA",
+                            },
+                            "unit": {
+                                "type": "string",
+                                "enum": ["celsius", "fahrenheit"],
+                            },
+                        },
+                        "required": ["location"],
+                    },
+                },
+            }
+        ],
+        "tool_choice": "auto",
+    }
+
+    headers = {"Authorization": f"Bearer {TEST_BEARER_TOKEN}"}
+    response = client.post("/v1/chat/completions", json=payload, headers=headers)
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["choices"][0]["finish_reason"] == "tool_calls"
+    assert (
+        data["choices"][0]["message"]["tool_calls"][0]["function"]["name"]
+        == "get_weather"
+    )
+    assert (
+        data["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"][
+            "location"
+        ]
+        == "Moscow"
+    )
+
+
+def test_chat_completions_without_tools(client, httpx_mock: HTTPXMock):
+    """Test that tool_calls is null when no tools are provided"""
+    httpx_mock.add_response(
+        json={
+            "choices": [
+                {
+                    "message": {
+                        "content": "Hello! How can I help you today?",
+                        "role": "assistant",
+                    },
+                    "index": 0,
+                    "finish_reason": "stop",
+                }
+            ],
+            "created": 1736023521,
+            "model": "GigaChat:1.0.26.20",
+            "object": "chat.completion",
+            "usage": {"prompt_tokens": 32, "completion_tokens": 63, "total_tokens": 95},
+        },
+        url="https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+        method="POST",
+    )
+
+    payload = {
+        "model": "GigaChat",
+        "stream": False,
+        "messages": [
+            {"role": "user", "content": "Hello!"},
+        ],
+        # No tools provided
+    }
+
+    headers = {"Authorization": f"Bearer {TEST_BEARER_TOKEN}"}
+    response = client.post("/v1/chat/completions", json=payload, headers=headers)
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["choices"][0]["finish_reason"] == "stop"
+    assert (
+        data["choices"][0]["message"]["content"] == "Hello! How can I help you today?"
+    )
+    # tool_calls should be null when no tools are provided
+    assert (
+        "tool_calls" not in data["choices"][0]["message"]
+        or data["choices"][0]["message"]["tool_calls"] is None
+    )
+
+
 def test_invalid_token(client):
     headers = {"Authorization": "Bearer 111"}
     response = client.get("/v1/models", headers=headers)

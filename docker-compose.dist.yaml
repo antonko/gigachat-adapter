@@ -1,0 +1,40 @@
+services:
+  gigachat-adapter:
+    # Use pre-built image from Docker Hub
+    image: antonk0/gigachat-adapter:latest
+    
+    # Uncomment to build from local folder instead of pulling from Docker Hub
+    # build: .
+    
+    ports:
+      - "8000:8000"
+    
+    environment:
+      # Required: GigaChat API credentials
+      GIGACHAT_CREDENTIALS: your_gigachat_credentials_here
+
+      # Required: Bearer token for adapter authentication
+      BEARER_TOKEN: your_bearer_token_here
+
+      # Optional: Disable SSL verification for development
+      GIGACHAT_VERIFY_SSL_CERTS: false
+      
+      # Optional: Set environment
+      ENVIRONMENT: production
+      
+      # Optional: Enable debug mode
+      DEBUG: false
+    
+      # Optional: Add custom GigaChat settings
+      # GIGACHAT_SCOPE: GIGACHAT_API_PERS
+      # GIGACHAT_MODEL: GigaChat:1.0.26.20
+      # GIGACHAT_BASE_URL: https://gigachat.devices.sberbank.ru/api/v1
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

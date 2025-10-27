@@ -3,9 +3,12 @@
 [![Build](https://github.com/antonko/gigachat-adapter/actions/workflows/release.yml/badge.svg)](https://github.com/antonko/gigachat-adapter/actions/workflows/release.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/antonk0/gigachat-adapter)](https://hub.docker.com/r/antonk0/gigachat-adapter)
 
-Адаптер предоставляет доступ к GigaChat API через интерфейс, совместимый с OpenAI API, позволяя интегрировать GigaChat в приложения, изначально ориентированные на OpenAI, с минимальными изменениями кода.
+Адаптер предоставляет доступ к GigaChat API через интерфейс, совместимый с OpenAI API, позволяя интегрировать GigaChat в
+приложения, изначально ориентированные на OpenAI, с минимальными изменениями кода.
 
-Изначально проект был создан для подключения к сервису Open WebUI. На текущий момент реализована базовая работа с GigaChat через метод `chat/completions` с поддержкой файлов в сообщениях. Таких возможности как embeddings и т.д будут реализованы по мере необходимости.
+Изначально проект был создан для подключения к сервису Open WebUI. На текущий момент реализована базовая работа с
+GigaChat через метод `chat/completions` с поддержкой файлов в сообщениях и tool calling. Таких возможности как
+embeddings и т.д будут реализованы по мере необходимости.
 
 ## Features
 
@@ -14,6 +17,7 @@
 - На основе официальной библиотеки [gigachat](https://github.com/ai-forever/gigachat)
 - Поддержка `chat/completions` API с потоковой передачей сообщений
 - Поддержка файлов в сообщениях исключая повторные загрузки в GigaChat
+- Поддержка function call для интеграции с внешними API и сервисами (OpenAI-совместимый формат)
 - Docker-образ
 - Healthcheck API (ready, live)
 
@@ -65,10 +69,11 @@ Below are the environment variables you can set in your .env file:
 
 ### GigaChat Settings
 
-Параметры библиотеки [gigachat](https://github.com/ai-forever/gigachat). Параметры должны начинаться с `GIGACHAT_` и соответствовать параметрам GigaChat API.
+Параметры библиотеки [gigachat](https://github.com/ai-forever/gigachat). Параметры должны начинаться с `GIGACHAT_` и
+соответствовать параметрам GigaChat API.
 
 | Параметр          | Обязательный | Описание                                                           |
-| ----------------- | ------------ | ------------------------------------------------------------------ |
+|-------------------|--------------|--------------------------------------------------------------------|
 | CREDENTIALS       | Да           | Ключ авторизации для доступа к GigaChat API.API.                   |
 | VERIFY_SSL_CERTS  | Нет          | Отключение проверки ssl-сертификатов.                              |
 | SCOPE             | Нет          | Версия API: GIGACHAT_API_PERS, GIGACHAT_API_B2B, GIGACHAT_API_CORP |
@@ -91,11 +96,84 @@ Below are the environment variables you can set in your .env file:
 Обязательно надо указать `BEARER_TOKEN` для авторизации запросов к адаптеру.
 
 | Параметр           | Обязательный | Описание                                  |
-| ------------------ | ------------ | ----------------------------------------- |
+|--------------------|--------------|-------------------------------------------|
 | BEARER_TOKEN       | Да           | Токен для авторизации запросов к адаптеру |
 | DEBUG              | Нет          | Режим отладки, подробные логи             |
 | ENVIRONMENT        | Нет          | Окружение (development/production)        |
 | CORS_ALLOWED_HOSTS | Нет          | Список разрешенных хостов для CORS        |
+
+## Поддержка Functino Call
+
+Адаптер поддерживает functino calling в формате, совместимом с OpenAI API, позволяя моделям GigaChat вызывать
+определенные инструменты с параметрами. Это полезно для интеграции с внешними API, базами данных или пользовательской
+логикой.
+
+### Пример использования:
+
+```json
+{
+  "model": "GigaChat",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What's the weather like in Moscow?"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "Get the current weather in a given location",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "The city name"
+            }
+          },
+          "required": [
+            "location"
+          ]
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto"
+}
+```
+
+### Формат ответа:
+
+```json
+{
+  "choices": [
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_123",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": {
+                "location": "Moscow"
+              }
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ]
+}
+```
+
+Подробное описание tool calling доступно
+в [документации](https://developers.sber.ru/docs/ru/gigachat/guides/functions/overview).
 
 # Development
 
@@ -120,7 +198,7 @@ BEARER_TOKEN=your_token
 GIGACHAT_CREDENTIALS=your_gigachat_credentials
 ```
 
-2. Local development:
+3. Local development:
 
 ```bash
 uv run fastapi dev src/main.py
