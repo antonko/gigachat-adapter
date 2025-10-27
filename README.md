@@ -43,6 +43,22 @@ services:
       - GIGACHAT_VERIFY_SSL_CERTS=False
 ```
 
+## Интеграция с OpenAI-совместимыми приложениями
+
+При интеграции адаптера с приложениями, которые поддерживают OpenAI API, используйте следующий базовый URL:
+
+```
+http://your-host:8000/v1
+```
+
+**Важно**: Для корректной работы с большинством OpenAI-совместимых приложений рекомендуется добавлять `/v1` к базовому URL адаптера (но это не точно).
+
+Примеры настройки:
+
+- **Base URL**: `http://localhost:8000/v1` (для локального запуска)
+- **Base URL**: `http://gigachat-adapter:8000/v1` (для Docker Compose)
+- **Authorization**: Bearer Token (значение переменной `BEARER_TOKEN`)
+
 ## Environment Variables
 
 Below are the environment variables you can set in your .env file:
